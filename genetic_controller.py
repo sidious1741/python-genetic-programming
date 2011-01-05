@@ -1,0 +1,401 @@
+from inspect import getargspec
+import random
+import copy
+
+class GeneticController:
+    def __init__(self):
+
+
+#"""
+#6 qualitative variables
+
+#generative method for the initial random population (ramped half-and-half)
+
+#method of selection for reproduction and for the first parent in crossover (fitness-proportionate reproduction)
+
+#method of selecting the second parent for a crossover (the same as the method for selecting the first parent)
+
+#optional adjusted fitness measure is used
+
+#over-selection (not used for populations of 500 and below and is used for populations of 1000 and above
+
+#elitist strategy (not used)"""
+
+# 6.9 Control parameters
+    # 19 control parameters
+    # 2 major numerical parameters
+        self.M          = 500   # Population size
+        self.G          = 51    # Maximum number of generations
+
+    # 11 minor numerical parameters
+        self.p_c        = .90   # Probability of crossover
+        self.p_r        = .10   # Probability of reproduction
+        self.p_ip       = .90   # Probability of choosing internal points
+        self.D_c        = 17    # Maximum depth for created structures
+        self.D_i        = 6     # Maximum depth for initial structures
+        self.p_m        = .0     # Probability of mutation
+        self.p_p        = .0     # Probability of permutation
+        self.f_ed       = 0     # Frequency of editing
+        self.p_en       = .0     # Probability of encapsulation
+        # NIL
+        self.p_d        = .0     # Decimation target percentage
+
+    # 6 qualitative variables
+        self.generative_method                  = self.ramped_half_and_half   # page 93
+        self.first_parent_selection_method      = self.fitness_proportionate
+        self.second_parent_selection_method     = self.fitness_proportionate
+        self.use_adjusted_fitness               = True
+
+        if self.M <= 500:
+            self.over_selection                 = True
+        if self.M >= 1000:
+            self.over_selection                 = False
+
+        self.elitist_strategy                   = False
+
+
+    # Other variables
+        self.function_type = type(getargspec)
+        self.generation = 0
+        self.current_generation = [None] * self.M
+        self.next_generation = []
+        self.r_max = None
+        self.worst_fitness = [None] * self.G
+        self.average_fitness = [None] * self.G
+        self.best_fitness = [None] * self.G
+        self.total_adjusted_fitness = [0] * self.G
+
+
+    def wrapper(self, arg):
+        """return arg unless overrided by subclass"""
+        return arg
+
+    def is_function(self, possible_function):
+        # Considered a terminal if arity == 0
+        if type(possible_function) == self.function_type and len(getargspec(possible_function)[0]) > 0:
+            return True
+        return False
+
+# 6.2 The Initial Structures
+
+    def full(self, genome, depth):
+        """A method to build initial structures where all terminals are the same distance from the top"""
+        node = GenomeNode(genome)
+        if depth > 1:
+            node.set_function(random.choice(self.F))
+        else:
+            node.set_terminal(random.choice(self.T))
+
+        for i in range(node.arity):
+            node.add_child(self.full(genome, depth-1))
+
+        return node
+        
+    def grow(self, genome, depth):
+        """A method to build variably shaped initial structures"""
+        node = GenomeNode(genome)
+        if depth == self.D_i:
+            node.set_function(random.choice(self.F))
+        elif depth > 1:
+            possible_function = random.choice(self.F + self.T)
+            if self.is_function(possible_function):
+                node.set_function(possible_function)
+            else:
+                node.set_terminal(possible_function)
+        else:
+            node.set_terminal(random.choice(self.T))
+
+        for i in range(node.arity):
+            node.add_child(self.grow(genome, depth-1))
+
+        return node
+
+    def ramped_half_and_half(self, genome):
+        depth = random.randint(2,self.D_i)
+        if random.randint(0,1):
+            return self.full(genome,depth)
+        else:
+            return self.grow(genome,depth)
+
+    def build_initial_structures(self):
+        for i in range(self.M):
+            genome = Genome()
+            genome.first_node = self.generative_method(genome)
+            self.current_generation[i] = Organism(genome)
+
+    def test_generation(self):
+        for i in range(self.M):
+            print self.generation, '\t', i
+            self.test_organism(self.current_generation[i])
+            if i == 0:
+                self.worst_fitness[self.generation] = self.s(i)
+                self.average_fitness[self.generation] = self.s(i)
+                self.best_fitness[self.generation] = self.s(i)
+            else:
+                self.average_fitness[self.generation] = (self.average_fitness[self.generation] * i + self.s(i)) / (i+1)
+                if self.s(i) > self.worst_fitness[self.generation]:
+                    self.worst_fitness[self.generation] = self.s(i)
+                elif self.s(i) < self.best_fitness[self.generation]:
+                    self.best_fitness[self.generation] = self.s(i)
+            self.total_adjusted_fitness[self.generation] += self.a(i,self.generation) #
+
+# 6.3 Fitness
+
+    def r(self, i, t=None):
+        """Raw Fitness"""
+        # t ignored for now because only current_generation is recorded
+        return self.current_generation[i].raw_fitness
+
+    def s(self, i, t=None):
+        """Standardized Fitness
+           Adjustment for raw fitness so a lower fitness is always better."""
+        if self.r_max:
+            return self.r_max - self.r(i,t)
+        return self.r(i,t)
+
+    def a(self, i, t=None):
+        """Adjusted Fitness
+           A value between 0 and 1. The adjusted fitness is bigger for better individuals.
+                         1
+           a(i,t) = ------------
+                     1 + s(i,t)   
+        """
+        return 1.0 / (1.0 + self.s(i))
+
+    def n(self, i, t=None):
+        """Normalized Fitness
+           A value between 0 and 1. Larger for better individuals. Sum of normalized fitness values is 1.
+                                a(i,t)
+           n(i,t) = ---------------------------------
+                     sum of a(k,t) for k from 0 to M
+        """
+        return self.a(i,t) / self.total_adjusted_fitness[self.generation]
+
+# Selection
+
+    def fitness_proportionate(self):
+        #individual = random.choice(self.current_generation)
+        #while random.random > self.n(individual):
+        #    individual = random.choice(current_generation)
+        i = random.randint(0,self.M-1)
+        while random.random() > self.n(i):
+            i = random.randint(0,self.M-1)
+        
+        return self.current_generation[i]
+        
+    def make_child(self):
+        # Not sure how Koza whould do this
+        parent = self.first_parent_selection_method()
+        if random.random() < self.p_c:
+            self.next_generation.append( self.crossover(parent,self.second_parent_selection_method()) )
+        if random.random() < self.p_r:
+            self.next_generation.append( self.reproduce(parent) )
+        if random.random() < self.p_m:
+            self.next_generation.append( self.mutate(parent) )
+        if random.random() < self.p_p:
+            self.next_generation.append( self.permutate(parent) )
+        #if random.random() < self.p_d:
+        #    decimate
+
+        #if len(self.next_generation) >= self.M:
+        #    while len(self.next_generation) > self.M:
+        #        self.next_generation.pop()
+        #    self.generati
+
+    def make_next_generation(self):
+        while len(self.next_generation) < self.M:
+            self.make_child()
+        self.current_generation = copy.deepcopy(self.next_generation)
+        self.next_generation = [] # or ()
+        self.generation += 1
+
+# 6.4 Primary Operations For Modifying Structures
+
+    def reproduce(self,parent):
+        child_genome = copy.deepcopy(parent.genome)
+        return Organism(child_genome)
+
+    def crossover(self, first_parent, second_parent):
+        child_genome = copy.deepcopy(first_parent.genome)
+
+        if random.random() < self.p_ip:
+            first_node = child_genome.get_random_function() # what if no function
+        else:
+            first_node = child_genome.get_random_terminal()
+
+        if random.random() < self.p_ip:
+            second_node = copy.deepcopy(second_parent.genome).get_random_function() # () around whole thing or just parent.genome ?
+        else:
+            second_node = copy.deepcopy(second_parent.genome).get_random_terminal()
+
+        first_node = second_node
+
+        return Organism(child_genome)
+
+# Secondary Operations For Modifying Structures
+
+#    def mutation
+    def permutation(self, parent):
+        child_genome = copy.deepcopy(parent.genome)
+        random.shuffle( child_genome.get_random_function().children )
+        return Organism(child_genome)
+        
+#    def edit
+#    def encapsulation
+#    def decimate
+
+    def test_all_generations(self):
+        self.build_initial_structures()
+        self.test_generation()
+        for i in range(1,self.G):
+            self.make_next_generation()
+            self.test_generation()
+
+
+class Genome:
+    def __init__(self):
+        self.nodes = []
+        self.function_nodes = []
+        self.terminal_nodes = []
+        self.actual_args = {}
+
+    def get_random_node(self):
+        return random.choice(self.nodes)
+
+    def get_random_function(self):
+        if len(self.function_nodes) > 0:
+            return random.choice(self.function_nodes)
+        else:
+            return self.get_random_terminal()
+
+    def get_random_terminal(self):
+        return random.choice(self.terminal_nodes)
+
+    def run(self, *args):
+        for i in range(len(Genome.formal_args)):
+            self.actual_args[Genome.formal_args[i]] = args[i]
+        return self.first_node.run()
+
+    def __str__(self):
+        return self.__repr__()
+    def __repr__(self):
+        return self.first_node.__repr__()
+
+
+class GenomeNode:
+    def __init__(self, container):
+        self.container = container
+        self.children = []
+
+    def set_function(self, function):
+        self.function = function
+        self.arity = len(getargspec(function)[0])
+
+    def set_terminal(self, terminal):
+        self.terminal = terminal
+        self.arity = 0
+
+    def is_function(self):
+        return self.arity > 0
+
+    def add_child(self, child):
+        self.children.append(child)
+        if child.is_function():
+            self.container.function_nodes.append(child)
+        else:
+            self.container.terminal_nodes.append(child)
+        self.container.nodes.append(child)
+
+    def interpret_terminal(self):
+        #if type(self.terminal) == str:
+        #    return locals()[self.terminal]
+        #elif type(self.terminal) == int:
+        #    return self.terminal
+        #else:
+        #    return self.terminal()
+        if type(self.terminal) == str:
+            return self.container.actual_args.get(self.terminal)
+        elif type(self.terminal) == int:
+            return self.terminal
+        
+    def run(self):
+        if self.is_function():
+            args = []
+            for child in self.children:
+                args.append(child.run())
+            return self.function(*args)
+        else:
+            return self.interpret_terminal()
+
+    def __repr__(self):
+        if self.is_function():
+            s = '(' + self.function.__name__ + ' '
+            s += ', '.join(repr(c) for c in self.children)
+            return s + ')'
+        else:
+            return '(' + str(self.terminal) + ')'
+
+class Organism:
+    def __init__(self, genome):
+        self.genome = genome
+        #import pdb; pdb.set_trace()
+        #self.wrapper = locals()['wrapper']
+        self.raw_fitness = None
+        #self.hits = None
+        self.hits = 0
+    def run(self, *args):
+        #return self.wrapper(self.genome.run())
+        return self.genome.run(*args)
+    def __repr__():
+        return \
+        "Raw Fitness: " + str(self.raw_fitness) + "\n" + \
+        "Hits: " + str(self.hits) + "\n" + \
+        "Function: " + str(self.genome)
+
+
+"""19 control parameters
+
+2 major numerical parameters
+M
+G
+
+11 minor numerical parameters
+
+p_c: probability of crossover (.90)
+    crossover is performed on 90% of population
+    (450 individuals / 500)
+    (with reselection allowed)
+p_r: probability of reproduction (.10)
+    (50 / 500 selected for reproduction)
+    (with reselection allowed)
+p_ip: probability distribution that allocates (90%) of the crowwover points equally among the internal function points of each tree and 10% of the crossover points equally among the external terminal points of each tree.
+
+D_created: maximum size measured by depth (17) for S-expressions created by the crossover operation (or any secondary genetic operations that may be used in a given run
+
+D_initial: maximum size measured by depth (6) for the random individuals generated for the initial population
+
+p_m: probability of mutation (0)
+
+p_p: probability of performing permutation (0)
+
+f_ed: parameter specifying the frequency of applying the operation of editing (0)
+
+p_en: probability of encapsulation specifying the frequency of performing encapsulation (0)
+
+decimation (NIL)
+
+p_d: decimation percentage (0)
+
+6 qualitative variables
+
+generative method for the initial random population (ramped half-and-half)
+
+method of selection for reproduction and for the first parent in crossover (fitness-proportionate reproduction)
+
+method of selecting the second parent for a crossover (the same as the method for selecting the first parent)
+
+optional adjusted fitness measure is used
+
+over-selection (not used for populations of 500 and below and is used for populations of 1000 and above
+
+elitist strategy (not used)"""
