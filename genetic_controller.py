@@ -411,7 +411,7 @@ class Organism:
     def run(self, *args):
         #return self.wrapper(self.genome.run())
         return self.genome.run(*args)
-    def __repr__():
+    def __repr__(self):
         return \
         "Raw Fitness: " + str(self.raw_fitness) + "\n" + \
         "Hits: " + str(self.hits) + "\n" + \
