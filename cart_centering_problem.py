@@ -58,6 +58,7 @@ def V:
 
 cc = CartController()
 cc.test_all_generations()
+cc.display_fitness_curves()
 
 """
 classes GeneticFunctions and GeneticTerminals

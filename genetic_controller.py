@@ -1,6 +1,7 @@
 from inspect import getargspec
 import random
 import copy
+import matplotlib.pyplot as plt
 
 class GeneticController:
     def __init__(self):
@@ -57,13 +58,20 @@ class GeneticController:
     # Other variables
         self.function_type = type(getargspec)
         self.generation = 0
-        self.current_generation = [None] * self.M
+        self.current_generation = []
         self.next_generation = []
         self.r_max = None
         self.worst_fitness = [None] * self.G
         self.average_fitness = [None] * self.G
         self.best_fitness = [None] * self.G
         self.total_adjusted_fitness = [0] * self.G
+
+    # Statistics
+        self.n_best_of_population = 10
+        self.best_of_population = []
+        self.n_best_of_generation = 2
+        self.best_of_generation = []
+        # histogram
 
 
     def wrapper(self, arg):
@@ -91,22 +99,26 @@ class GeneticController:
 
         return node
         
-    def grow(self, genome, depth):
+    def grow(self, genome, depth, first_node=True):
         """A method to build variably shaped initial structures"""
         node = GenomeNode(genome)
-        if depth == self.D_i:
+
+        # first node must be a funciton
+        if first_node:
             node.set_function(random.choice(self.F))
+
         elif depth > 1:
             possible_function = random.choice(self.F + self.T)
             if self.is_function(possible_function):
                 node.set_function(possible_function)
             else:
                 node.set_terminal(possible_function)
+
         else:
             node.set_terminal(random.choice(self.T))
 
         for i in range(node.arity):
-            node.add_child(self.grow(genome, depth-1))
+            node.add_child(self.grow(genome, depth-1, False))
 
         return node
 
@@ -118,10 +130,20 @@ class GeneticController:
             return self.grow(genome,depth)
 
     def build_initial_structures(self):
-        for i in range(self.M):
+        i = 0
+        while i < self.M:
             genome = Genome()
             genome.first_node = self.generative_method(genome)
-            self.current_generation[i] = Organism(genome)
+            if not self.has_duplicate(genome):
+                self.next_generation.append(Organism(genome))
+                i += 1
+        self.current_generation = self.next_generation
+
+    def has_duplicate(self, genome):
+        for organism in self.next_generation:
+            if organism.genome == genome:
+                return True
+        return False
 
     def test_generation(self):
         for i in range(self.M):
@@ -187,13 +209,21 @@ class GeneticController:
         # Not sure how Koza whould do this
         parent = self.first_parent_selection_method()
         if random.random() < self.p_c:
-            self.next_generation.append( self.crossover(parent,self.second_parent_selection_method()) )
+            child = self.crossover(parent,self.second_parent_selection_method())
+            if not self.has_duplicate(child.genome):
+                self.next_generation.append(child)
         if random.random() < self.p_r:
-            self.next_generation.append( self.reproduce(parent) )
+            child = self.reproduce(parent)
+            if not self.has_duplicate(child.genome):
+                self.next_generation.append( self.reproduce(parent) )
         if random.random() < self.p_m:
-            self.next_generation.append( self.mutate(parent) )
+            child = self.mutate(parent)
+            if not self.has_duplicate(child.genome):
+                self.next_generation.append( self.mutate(parent) )
         if random.random() < self.p_p:
-            self.next_generation.append( self.permutate(parent) )
+            child = self.permutate(parent)
+            if not self.has_duplicate(child.genome):
+                self.next_generation.append( self.permutate(parent) )
         #if random.random() < self.p_d:
         #    decimate
 
@@ -244,12 +274,28 @@ class GeneticController:
 #    def encapsulation
 #    def decimate
 
+
+
     def test_all_generations(self):
         self.build_initial_structures()
         self.test_generation()
         for i in range(1,self.G):
             self.make_next_generation()
             self.test_generation()
+
+    def display_fitness_curves(self):
+        t = range(0,len(self.average_fitness))
+
+        l_worst, = plt.plot(t, self.worst_fitness, 'g-o')
+        l_average, = plt.plot(t, self.average_fitness, 'b-D')
+        l_best, = plt.plot(t, self.best_fitness, 'r-s')
+
+        plt.legend( (l_worst, l_average, l_best), ('worst', 'average', 'best'), 'upper right', shadow=True)
+        plt.xlabel('Generation')
+        plt.ylabel('Fitness')
+        plt.title('Fitness Curves')
+        #axis([0,len(self.average_fitness),0,])
+        plt.show()
 
 
 class Genome:
@@ -275,6 +321,13 @@ class Genome:
         for i in range(len(Genome.formal_args)):
             self.actual_args[Genome.formal_args[i]] = args[i]
         return self.first_node.run()
+
+    def __eq__(self, other):
+        if len(self.nodes) != len(other.nodes) or \
+        len(self.terminal_nodes) != len(other.terminal_nodes) or \
+        len(self.function_nodes) != len(other.function_nodes):
+            return False
+        return self.first_node == other.first_node
 
     def __str__(self):
         return self.__repr__()
@@ -326,6 +379,18 @@ class GenomeNode:
             return self.function(*args)
         else:
             return self.interpret_terminal()
+
+    def __eq__(self, other):
+        if self.is_function() and other.is_function():
+            if len(self.children) != len(other.children) or self.function != other.function:
+                return False
+            return True
+        elif not self.is_function() and not other.is_function():
+            if self.terminal == other.terminal:
+                return True
+            return False
+        else:
+            return False
 
     def __repr__(self):
         if self.is_function():
