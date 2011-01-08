@@ -1,1 +1,5 @@
-Thank you Koza
+This project is an implementation of the genetic programming control structure described by John Koza in his book "Genetic Programming; on the programming of computers by means of natural selection." Most of the book can be viewed at http://books.google.com/books?id=Bhtxo60BV0EC&printsec=frontcover&dq=koza+genetic+programming&source=bl&ots=9njRhpf7TO&sig=kZMh-4b-5KscagL9hRmXFDotOok&hl=en&ei=qr4oTbOSKMmdnwf84YH2AQ&sa=X&oi=book_result&ct=result&resnum=5&ved=0CDwQ6AEwBA#v=onepage&q&f=true
+
+We wish to use this implementation to solve difficult problems in artificial intelligence.
+
+To run an example simply chose an example from the examples diretory.

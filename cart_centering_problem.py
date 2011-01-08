@@ -4,6 +4,8 @@ import random
 class CartController(GeneticController):
     def __init__(self):
         GeneticController.__init__(self)
+        self.M = 500
+        self.G = 20
     
         # Terminal set
         self.T = ['x','v',-1]
@@ -15,8 +17,7 @@ class CartController(GeneticController):
 
 # Fitness cases ??
 
-    def test_organism(self, centerer):
-        """This method should test a given organism and assign asfasdfsaf"""
+    def test_organism(self, centerer): # will later pass fitness cases to self.test_fitness_case
         total_time = 0
         for i in range(20):
             v = 1.5 * random.random() - .75
@@ -47,23 +48,11 @@ def div(a,b):
 div.__name__ = '%'
 def gt(a,b): 
     return int(a<b)*2-1
-def ABS(a): ###################################
+def ABS(a): # cannot use abs because getargspec is weird with built-in functions
     return abs(a)
-"""def X:
-    return locals('self.x')
-def V:
-    return locals('self.v')
-"""
 
+if __name__ == '__main__':
+    cc = CartController()
+    cc.test_all_generations()
+    cc.display_fitness_curves()
 
-cc = CartController()
-cc.test_all_generations()
-cc.display_fitness_curves()
-
-"""
-classes GeneticFunctions and GeneticTerminals
-a Resources class
-organism does not need variables, test_organism and genome do
-dont extend organism
-put all of genetic_controller in genome
-"""

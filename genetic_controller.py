@@ -12,27 +12,12 @@ import numpy as np
 class GeneticController:
     def __init__(self):
 
-
-#"""
-#6 qualitative variables
-
-#generative method for the initial random population (ramped half-and-half)
-
-#method of selection for reproduction and for the first parent in crossover (fitness-proportionate reproduction)
-
-#method of selecting the second parent for a crossover (the same as the method for selecting the first parent)
-
-#optional adjusted fitness measure is used
-
-#over-selection (not used for populations of 500 and below and is used for populations of 1000 and above
-
-#elitist strategy (not used)"""
-
 # 6.9 Control parameters
+# {
     # 19 control parameters
     # 2 major numerical parameters
         self.M          = 500   # Population size
-        self.G          = 25    # Maximum number of generations
+        self.G          = 50    # Maximum number of generations
 
     # 11 minor numerical parameters
         self.p_c        = .90   # Probability of crossover
@@ -40,26 +25,26 @@ class GeneticController:
         self.p_ip       = .90   # Probability of choosing internal points
         self.D_c        = 17    # Maximum depth for created structures
         self.D_i        = 6     # Maximum depth for initial structures
-        self.p_m        = .0     # Probability of mutation
-        self.p_p        = .0     # Probability of permutation
+        self.p_m        = .0    # Probability of mutation
+        self.p_p        = .0    # Probability of permutation
         self.f_ed       = 0     # Frequency of editing
-        self.p_en       = .0     # Probability of encapsulation
-        # NIL
-        self.p_d        = .0     # Decimation target percentage
+        self.p_en       = .0    # Probability of encapsulation
+        # NIL           # This var is the condition for decimation, i dont see why it is needed when p_d == .0
+        self.p_d        = .0    # Decimation target percentage
 
     # 6 qualitative variables
-        self.generative_method                  = self.ramped_half_and_half   # page 93
-        self.first_parent_selection_method      = self.fitness_proportionate
-        self.second_parent_selection_method     = self.fitness_proportionate
-        self.use_adjusted_fitness               = True
+        self.generative_method                  = self.ramped_half_and_half   # page 93 # Generative method for the initial random population
+        self.first_parent_selection_method      = self.fitness_proportionate    # Method of selection for the first parent in crossover
+        self.second_parent_selection_method     = self.fitness_proportionate    # Method of selection for the second parent in crossover
+        self.use_adjusted_fitness               = True                          # Optional adjusted fitness measure is used
 
-        if self.M <= 500:
-            self.over_selection                 = True
+        if self.M <= 500:                                                       # Over-selection
+            self.over_selection                 = False                         # Not used for populations of 500 and below
         if self.M >= 1000:
-            self.over_selection                 = False
+            self.over_selection                 = True                          # Used for populations of 1000 and above
 
-        self.elitist_strategy                   = False
-
+        self.elitist_strategy                   = False                         # elitist_strategy
+# }
 
     # Other variables
         self.function_type = type(getargspec)
@@ -99,6 +84,7 @@ class GeneticController:
         return False
 
 # 6.2 The Initial Structures
+# {
 
     def full(self, genome, depth):
         """A method to build initial structures where all terminals are the same distance from the top"""
@@ -154,6 +140,8 @@ class GeneticController:
         self.current_generation = copy.deepcopy(self.next_generation)
         self.next_generation = []
 
+# }
+
     def has_duplicate(self, genome):
         return False
         for organism in self.next_generation:
@@ -185,6 +173,7 @@ class GeneticController:
         #    self.Z[self.generation][i] = hist[i]
 
 # 6.3 Fitness
+# {
 
     def r(self, i, t=None):
         """Raw Fitness"""
@@ -216,7 +205,10 @@ class GeneticController:
         """
         return self.a(i,t) / self.total_adjusted_fitness[self.generation]
 
+# }
+
 # Selection
+# {
 
     def fitness_proportionate(self):
         #individual = random.choice(self.current_generation)
@@ -228,6 +220,8 @@ class GeneticController:
         
         return self.current_generation[i]
         
+# }
+
     def make_child(self):
         # Not sure how Koza whould do this
         parent = self.first_parent_selection_method()
@@ -263,12 +257,17 @@ class GeneticController:
         self.generation += 1
 
 # 6.4 Primary Operations For Modifying Structures
+# {
 
+    # 6.4.1 Reproduction
     def reproduce(self,parent):
+        """asexual reproduction"""
         child_genome = copy.deepcopy(parent.genome)
         return Organism(child_genome)
 
+    # 6.4.2 Crossover
     def crossover(self, first_parent, second_parent):
+        """sexual reproduction"""
         child_genome = copy.deepcopy(first_parent.genome)
 
         if random.random() < self.p_ip:
@@ -285,19 +284,27 @@ class GeneticController:
 
         return Organism(child_genome)
 
-# Secondary Operations For Modifying Structures
+# }
 
+# 6.5 Secondary Operations
+# {
+
+    # 6.5.1 Mutation
 #    def mutation
+    # 6.5.2 Permutation
     def permutation(self, parent):
         child_genome = copy.deepcopy(parent.genome)
         random.shuffle( child_genome.get_random_function().children )
         return Organism(child_genome)
         
+    # 6.5.3 Editing
 #    def edit
+    # 6.5.4 Encapsulation
 #    def encapsulation
+    # 6.5.5 Decimation
 #    def decimate
 
-
+# }
 
     def test_all_generations(self):
         self.build_initial_structures()
@@ -463,50 +470,3 @@ class Organism:
         "Hits: " + str(self.hits) + "\n" + \
         "Function: " + str(self.genome)
 
-
-"""19 control parameters
-
-2 major numerical parameters
-M
-G
-
-11 minor numerical parameters
-
-p_c: probability of crossover (.90)
-    crossover is performed on 90% of population
-    (450 individuals / 500)
-    (with reselection allowed)
-p_r: probability of reproduction (.10)
-    (50 / 500 selected for reproduction)
-    (with reselection allowed)
-p_ip: probability distribution that allocates (90%) of the crowwover points equally among the internal function points of each tree and 10% of the crossover points equally among the external terminal points of each tree.
-
-D_created: maximum size measured by depth (17) for S-expressions created by the crossover operation (or any secondary genetic operations that may be used in a given run
-
-D_initial: maximum size measured by depth (6) for the random individuals generated for the initial population
-
-p_m: probability of mutation (0)
-
-p_p: probability of performing permutation (0)
-
-f_ed: parameter specifying the frequency of applying the operation of editing (0)
-
-p_en: probability of encapsulation specifying the frequency of performing encapsulation (0)
-
-decimation (NIL)
-
-p_d: decimation percentage (0)
-
-6 qualitative variables
-
-generative method for the initial random population (ramped half-and-half)
-
-method of selection for reproduction and for the first parent in crossover (fitness-proportionate reproduction)
-
-method of selecting the second parent for a crossover (the same as the method for selecting the first parent)
-
-optional adjusted fitness measure is used
-
-over-selection (not used for populations of 500 and below and is used for populations of 1000 and above
-
-elitist strategy (not used)"""
