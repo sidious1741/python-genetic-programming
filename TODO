@@ -1,0 +1,9 @@
+the Genetic controller class is very young. It could use a lot of cleaning up
+
+the method build_initial_structures is currently not exactly the way Koza describes on page 93
+
+what should be called structures and what should be called individuals
+
+Koza describes testing for different fitness cases. the test_organism method might later pass fitness cases to test_fitness_case
+
+Need to have a better interface to examine what is going on. The display_fitness_curves is a start. I dream of a program that displays a changing 2d hisogram of the current generation and lets you change parameters for next generation.
