@@ -1,7 +1,13 @@
 from inspect import getargspec
 import random
 import copy
+#import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FixedLocator, FormatStrFormatter
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 class GeneticController:
     def __init__(self):
@@ -26,7 +32,7 @@ class GeneticController:
     # 19 control parameters
     # 2 major numerical parameters
         self.M          = 500   # Population size
-        self.G          = 51    # Maximum number of generations
+        self.G          = 25    # Maximum number of generations
 
     # 11 minor numerical parameters
         self.p_c        = .90   # Probability of crossover
@@ -72,6 +78,14 @@ class GeneticController:
         self.n_best_of_generation = 2
         self.best_of_generation = []
         # histogram
+
+    # 3d graph
+        X = np.arange(0, self.G, 1) # gen
+        Y = np.arange(0, 201, 10) # fitness
+        self.X, self.Y = np.meshgrid(X, Y)
+        self.Z = [0]*self.G
+        #for i in range(self.G):
+        #    self.Z[i] = 20 # asdfsafdsafsafd
 
 
     def wrapper(self, arg):
@@ -137,9 +151,11 @@ class GeneticController:
             if not self.has_duplicate(genome):
                 self.next_generation.append(Organism(genome))
                 i += 1
-        self.current_generation = self.next_generation
+        self.current_generation = copy.deepcopy(self.next_generation)
+        self.next_generation = []
 
     def has_duplicate(self, genome):
+        return False
         for organism in self.next_generation:
             if organism.genome == genome:
                 return True
@@ -160,6 +176,13 @@ class GeneticController:
                 elif self.s(i) < self.best_fitness[self.generation]:
                     self.best_fitness[self.generation] = self.s(i)
             self.total_adjusted_fitness[self.generation] += self.a(i,self.generation) #
+
+        hist, edges = np.histogram([round(self.s(i,self.generation)) for i in range(self.M)], bins = 21, range=(0,200))
+        #self.Z[self.generation], edges = np.histogram([round(self.s(i,self.generation)) for i in range(self.M)], bins = 20, range=(0,200))
+        self.Z[self.generation] = list(hist)
+        print hist
+        #for i in range(len(hist)):
+        #    self.Z[self.generation][i] = hist[i]
 
 # 6.3 Fitness
 
@@ -236,7 +259,7 @@ class GeneticController:
         while len(self.next_generation) < self.M:
             self.make_child()
         self.current_generation = copy.deepcopy(self.next_generation)
-        self.next_generation = [] # or ()
+        self.next_generation = []
         self.generation += 1
 
 # 6.4 Primary Operations For Modifying Structures
@@ -284,6 +307,28 @@ class GeneticController:
             self.test_generation()
 
     def display_fitness_curves(self):
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+
+        self.Z = np.array(self.Z)
+        self.Z = self.Z.transpose()
+        #self.Z = self.X
+
+        surf = ax.plot_surface(self.X, self.Y, self.Z, rstride=1, cstride=1, cmap=cm.jet,
+                linewidth=0, antialiased=False)
+        ax.set_zlim3d(-1.01, 1.01)
+
+        ax.w_zaxis.set_major_locator(LinearLocator(10))
+        ax.w_zaxis.set_major_formatter(FormatStrFormatter('%.03f'))
+
+        fig.colorbar(surf, shrink=0.5, aspect=5)
+
+        plt.xlabel('Generation')
+        plt.ylabel('Fitness')
+
+        #plt.show()
+
+
         t = range(0,len(self.average_fitness))
 
         l_worst, = plt.plot(t, self.worst_fitness, 'g-o')
@@ -291,8 +336,8 @@ class GeneticController:
         l_best, = plt.plot(t, self.best_fitness, 'r-s')
 
         plt.legend( (l_worst, l_average, l_best), ('worst', 'average', 'best'), 'upper right', shadow=True)
-        plt.xlabel('Generation')
-        plt.ylabel('Fitness')
+        #plt.xlabel('Generation')
+        #plt.ylabel('Fitness')
         plt.title('Fitness Curves')
         #axis([0,len(self.average_fitness),0,])
         plt.show()
@@ -323,11 +368,12 @@ class Genome:
         return self.first_node.run()
 
     def __eq__(self, other):
-        if len(self.nodes) != len(other.nodes) or \
-        len(self.terminal_nodes) != len(other.terminal_nodes) or \
-        len(self.function_nodes) != len(other.function_nodes):
-            return False
-        return self.first_node == other.first_node
+        return self.__repr__() == other.__repr__()
+        #if len(self.nodes) != len(other.nodes) or \
+        #len(self.terminal_nodes) != len(other.terminal_nodes) or \
+        #len(self.function_nodes) != len(other.function_nodes):
+        #    return False
+        #return self.first_node == other.first_node
 
     def __str__(self):
         return self.__repr__()
