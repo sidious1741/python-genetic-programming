@@ -1,11 +1,11 @@
 from inspect import getargspec
 import random
 import copy
-#import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import matplotlib.__version__
+#from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FixedLocator, FormatStrFormatter
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -314,27 +314,25 @@ class GeneticController:
             self.test_generation()
 
     def display_fitness_curves(self):
-        fig = plt.figure()
-        ax = fig.gca(projection='3d')
+        try:
+            fig = plt.figure()
+            ax = fig.gca(projection='3d')
 
-        self.Z = np.array(self.Z)
-        self.Z = self.Z.transpose()
-        #self.Z = self.X
+            self.Z = np.array(self.Z)
+            self.Z = self.Z.transpose()
+            #self.Z = self.X
 
-        surf = ax.plot_surface(self.X, self.Y, self.Z, rstride=1, cstride=1, cmap=cm.jet,
-                linewidth=0, antialiased=False)
-        ax.set_zlim3d(-1.01, 1.01)
+            surf = ax.plot_surface(self.X, self.Y, self.Z, rstride=1, cstride=1, cmap=cm.jet,
+                    linewidth=0, antialiased=False)
+            ax.set_zlim3d(-1.01, 1.01)
 
-        ax.w_zaxis.set_major_locator(LinearLocator(10))
-        ax.w_zaxis.set_major_formatter(FormatStrFormatter('%.03f'))
+            ax.w_zaxis.set_major_locator(LinearLocator(10))
+            ax.w_zaxis.set_major_formatter(FormatStrFormatter('%.03f'))
 
-        fig.colorbar(surf, shrink=0.5, aspect=5)
+            fig.colorbar(surf, shrink=0.5, aspect=5)
 
-        plt.xlabel('Generation')
-        plt.ylabel('Fitness')
-
-        #plt.show()
-
+        except Exception:
+            print 'need matplotlib version 1 or greater. you have version ' + matplotlib.__version__
 
         t = range(0,len(self.average_fitness))
 
@@ -343,8 +341,8 @@ class GeneticController:
         l_best, = plt.plot(t, self.best_fitness, 'r-s')
 
         plt.legend( (l_worst, l_average, l_best), ('worst', 'average', 'best'), 'upper right', shadow=True)
-        #plt.xlabel('Generation')
-        #plt.ylabel('Fitness')
+        plt.xlabel('Generation')
+        plt.ylabel('Fitness')
         plt.title('Fitness Curves')
         #axis([0,len(self.average_fitness),0,])
         plt.show()
