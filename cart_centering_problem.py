@@ -1,11 +1,21 @@
 from genetic_controller import GeneticController, Genome
 import random
 
+"""
+Terminal set:   state variables x and v
+Function set:   + - * % ABS GT
+"""
+
 class CartController(GeneticController):
     def __init__(self):
         GeneticController.__init__(self)
-        self.M = 500
-        self.G = 20
+        self.M = 50
+        self.G = 5
+
+        self.lower_raw_fitness_is_better = True
+        self.r_max = 201
+        self.bins = 40
+        self.init_3d_graph()
     
         # Terminal set
         self.T = ['x','v',-1]
@@ -55,4 +65,3 @@ if __name__ == '__main__':
     cc = CartController()
     cc.test_all_generations()
     cc.display_fitness_curves()
-

@@ -2,8 +2,8 @@ from inspect import getargspec
 import random
 import copy
 import matplotlib.pyplot as plt
-import matplotlib.__version__
-#from mpl_toolkits.mplot3d import Axes3D
+import matplotlib
+from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FixedLocator, FormatStrFormatter
 import numpy as np
@@ -17,7 +17,7 @@ class GeneticController:
     # 19 control parameters
     # 2 major numerical parameters
         self.M          = 500   # Population size
-        self.G          = 50    # Maximum number of generations
+        self.G          = 51    # Maximum number of generations
 
     # 11 minor numerical parameters
         self.p_c        = .90   # Probability of crossover
@@ -56,6 +56,7 @@ class GeneticController:
         self.average_fitness = [None] * self.G
         self.best_fitness = [None] * self.G
         self.total_adjusted_fitness = [0] * self.G
+        self.lower_raw_fitness_is_better = False            # what to set default value
 
     # Statistics
         self.n_best_of_population = 10
@@ -65,13 +66,24 @@ class GeneticController:
         # histogram
 
     # 3d graph
-        X = np.arange(0, self.G, 1) # gen
-        Y = np.arange(0, 201, 10) # fitness
-        self.X, self.Y = np.meshgrid(X, Y)
-        self.Z = [0]*self.G
+        #X = np.arange(0, self.G, 1) # gen
+        #Y = np.arange(0, self.r_max, 10) # fitness
+        #self.X, self.Y = np.meshgrid(X, Y)
+        #self.Z = [0]*self.G
         #for i in range(self.G):
         #    self.Z[i] = 20 # asdfsafdsafsafd
 
+
+    def init_3d_graph(self):
+        #self.bins -= 1 # just the way things work out
+        self.X = np.arange(0, self.G, 1) # gen
+        self.Y = []
+                #np.arange(0, self.r_max, float(self.r_max/self.bins)) # fitness
+        #self.X, self.Y = np.meshgrid(X, Y)
+        self.Z = []
+                #[0]*self.G
+        #for i in range(self.G):
+        #    self.Z[i] = 20 # asdfsafdsafsafd
 
     def wrapper(self, arg):
         """return arg unless overrided by subclass"""
@@ -165,9 +177,13 @@ class GeneticController:
                     self.best_fitness[self.generation] = self.s(i)
             self.total_adjusted_fitness[self.generation] += self.a(i,self.generation) #
 
-        hist, edges = np.histogram([round(self.s(i,self.generation)) for i in range(self.M)], bins = 21, range=(0,200))
+        hist, edges = np.histogram([round(self.s(i,self.generation)) for i in range(self.M)], bins = self.bins, range=(0,self.r_max))
+        if self.Y == []:
+            for i in range(len(hist)):
+                self.Y.append( (edges[i]+edges[i+1])/2. )
+        print edges
         #self.Z[self.generation], edges = np.histogram([round(self.s(i,self.generation)) for i in range(self.M)], bins = 20, range=(0,200))
-        self.Z[self.generation] = list(hist)
+        self.Z.append(list(hist))
         print hist
         #for i in range(len(hist)):
         #    self.Z[self.generation][i] = hist[i]
@@ -183,9 +199,9 @@ class GeneticController:
     def s(self, i, t=None):
         """Standardized Fitness
            Adjustment for raw fitness so a lower fitness is always better."""
-        if self.r_max:
-            return self.r_max - self.r(i,t)
-        return self.r(i,t)
+        if self.lower_raw_fitness_is_better:
+            return self.r(i,t)        
+        return self.r_max - self.r(i,t)
 
     def a(self, i, t=None):
         """Adjusted Fitness
@@ -314,33 +330,39 @@ class GeneticController:
             self.test_generation()
 
     def display_fitness_curves(self):
-        try:
+        if True:
+            self.X, self.Y = np.meshgrid(self.X, self.Y)
+
             fig = plt.figure()
             ax = fig.gca(projection='3d')
 
             self.Z = np.array(self.Z)
             self.Z = self.Z.transpose()
-            #self.Z = self.X
 
             surf = ax.plot_surface(self.X, self.Y, self.Z, rstride=1, cstride=1, cmap=cm.jet,
                     linewidth=0, antialiased=False)
-            ax.set_zlim3d(-1.01, 1.01)
+            #ax.set_zlim3d(-1.01, 1.01)
 
             ax.w_zaxis.set_major_locator(LinearLocator(10))
             ax.w_zaxis.set_major_formatter(FormatStrFormatter('%.03f'))
 
             fig.colorbar(surf, shrink=0.5, aspect=5)
+            #plt.show()
+            print 'asffdsafdsa\n\n\n\n\n\n\n'
+            print self.X
+            print self.Y
+            print self.Z
 
-        except Exception:
-            print 'need matplotlib version 1 or greater. you have version ' + matplotlib.__version__
+        #except Exception:
+        #    print 'need matplotlib version 1 or greater. you have version ' + matplotlib.__version__
 
         t = range(0,len(self.average_fitness))
 
-        l_worst, = plt.plot(t, self.worst_fitness, 'g-o')
-        l_average, = plt.plot(t, self.average_fitness, 'b-D')
-        l_best, = plt.plot(t, self.best_fitness, 'r-s')
+        #l_worst, = plt.plot(t, self.worst_fitness, 'g-o')
+        #l_average, = plt.plot(t, self.average_fitness, 'b-D')
+        #l_best, = plt.plot(t, self.best_fitness, 'r-s')
 
-        plt.legend( (l_worst, l_average, l_best), ('worst', 'average', 'best'), 'upper right', shadow=True)
+        #plt.legend( (l_worst, l_average, l_best), ('worst', 'average', 'best'), 'upper right', shadow=True)
         plt.xlabel('Generation')
         plt.ylabel('Fitness')
         plt.title('Fitness Curves')
@@ -456,7 +478,7 @@ class Organism:
         self.genome = genome
         #import pdb; pdb.set_trace()
         #self.wrapper = locals()['wrapper']
-        self.raw_fitness = None
+        self.raw_fitness = 0
         #self.hits = None
         self.hits = 0
     def run(self, *args):

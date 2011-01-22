@@ -1,6 +1,11 @@
 from genetic_controller import GeneticController, Genome
 import random
 
+"""
+Terminal set:   left right move
+Function set:   if-food-ahead progn2 progn3
+"""
+
 class AntController(GeneticController):
     def __init__(self):
         GeneticController.__init__(self)
